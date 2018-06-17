@@ -1,701 +1,87 @@
 ﻿// ==UserScript==
 // @name        Verificador de uploads [FW]
-// @description Userscript para auxiliar na verificação de uploads na FileWarez.
-// @include     /^http(s)?:\/\/(www\.)?filewarez\.tv/.*$/
-// @copyright   2016, XOR
+// @version     1.0.0
+// @description User script para facilitar a verificação de uploads na FW
 // @author      XOR
-// @version     0.3.3
-// @grant       unsafeWindow
-// @grant       GM_xmlhttpRequest
-// @require     https://linkcheckerfw.github.io/lib/asmcrypto.js
-// @updateURL   https://linkcheckerfw.github.io/releases/linkchecker.meta.js
-// @downloadURL https://linkcheckerfw.github.io/releases/linkchecker.user.js
 // @namespace   4971e63b909612f5598edd6d90012dae
-// @connect     *
+// @match       *://*.filewarez.tv/*
+// @grant       GM_xmlhttpRequest
+// @grant       GM.xmlhttpRequest
+// @grant       GM.setValue
+// @grant       GM_setValue
+// @grant       GM.getValue
+// @grant       GM_getValue
+// @grant       GM_addStyle
+// @grant       GM.addStyle
+// @grant       unsafeWindow
 // @run-at      document-start
+// @connect     *
 // @noframes
 // ==/UserScript==
-(function() {
-  function Q(a, b) {
-    return Object.keys(a).map(function(c) {
-      return b(c, a[c]);
-    });
-  }
-  function z(a, b) {
-    Object.keys(a).forEach(function(c) {
-      return b(c, a[c]);
-    });
-  }
-  function A(a) {
-    if (a) {
-      var b = typeof a;
-      if ("string" === b) {
-        return a;
-      }
-      if ("object" === b) {
-        return Q(a, function(a, b) {
-          return [a, b].map(encodeURIComponent).join("=");
-        }).join("&");
-      }
-    }
-    return "";
-  }
-  function B(a, b, c, d, e) {
-    "undefined" === typeof c.Referer && (c.Referer = b);
-    c["X-Requested-With"] = "XMLHttpRequest";
-    return new Promise(function(f, h) {
-      var g = void 0, g = "function" === typeof e ? function(a) {
-        var c = a.responseText;
-        a = a.status;
-        200 === a ? f(e(c)) : h({responseText:e(c), status:a});
-      } : function(a) {
-        var c = a.responseText;
-        a = a.status;
-        200 === a ? f(c) : h({responseText:c, status:a});
-      };
-      GM_xmlhttpRequest({method:a, url:b, headers:c, data:d, onload:g});
-    });
-  }
-  function k(a, b, c, d) {
-    c = A(c);
-    return B("GET", a + (c ? "?" + c : ""), b || {}, "", d);
-  }
-  function C(a, b, c, d) {
-    c = A(c);
-    var e = {"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"};
-    z(b, function(a, c) {
-      e[a] = c;
-    });
-    return B("POST", a, e, c, d);
-  }
-  function R(a) {
-    return C("/postador.php", {Referer:a.referer || window.location.href}, {linkid:a.id, status:a.online, securitytoken:a.token || unsafeWindow.SECURITYTOKEN, automatic:!1, "do":"updatestatus"});
-  }
-  function n(a) {
-    var b = a.responseText;
-    a = a.status;
-    404 === a ? this.status = "offline" : (this.status = "unknown", this.reason = "Response: " + JSON.stringify(b || "") + "\nStatus : " + a);
-    return this;
-  }
-  function g(a) {
-    var b = this, c = {hostName:this.hostName, url:a.href, type:"file"};
-    return k(c.url, this.headers || {}, this.data || "").then(function(a) {
-      var e = void 0, f = void 0, h = b.regex;
-      h && (e = h.linkOff, f = h.linkOn);
-      if (e && e.test(a)) {
-        c.status = "offline";
-      } else {
-        if ("undefined" === typeof f || f.test(a)) {
-          c.status = "online";
-          if (b.getInfo) {
-            return b.getInfo(c, a);
-          }
-          e = h.fileName;
-          h = h.fileSize;
-          e && (e = (e.exec(a) || [])[1]) && (c.name = e);
-          h && (a = (h.exec(a) || [])[1]) && (c.size = a);
-        } else {
-          c.status = "unknown", c.reason = "Ops... regex";
-        }
-      }
-      return c;
-    }, n.bind(c));
-  }
-  function l(a) {
-    return S.parseFromString(a, "text/html");
-  }
-  function T(a, b) {
-    var c = l(b), d = c.querySelector('input[name="filename"]'), c = c.getElementsByClassName("meta");
-    d && (a.name = d.value);
-    c.length && (d = U.exec(c[0].textContent)) && (a.size = d[1]);
-    return a;
-  }
-  function V(a) {
-    var b = {url:a.href, type:"file"};
-    return k("http://gdvid.ga/2shd/index.php?url=" + b.url).then(function(a) {
-      try {
-        var d = JSON.parse(a);
-        switch(d.code) {
-          case 200:
-            b.status = "online";
-            b.name = d.name;
-            b.size = d.size;
-            break;
-          case 404:
-            b.status = "offline";
-            break;
-          default:
-            b.status = "unknown";
-        }
-        return b;
-      } catch (e) {
-        b.status = "unknown";
-      }
-      return b;
-    }, function() {
-      b.status = "unknown";
-      return b;
-    });
-  }
-  function W(a, b) {
-    var c = l(b).getElementsByClassName("inner-bg-repeat");
-    c.length && (c = c[0].children, 4 <= c.length && (a.name = c[2].textContent, c = (X.exec(c[3].textContent || "") || [])[1], a.size = c));
-    return a;
-  }
-  function Y(a, b) {
-    var c = l(b).getElementsByClassName("fNameLink");
-    if (c.length) {
-      var c = Z.exec(c[0].textContent) || [], d = c[2];
-      a.name = c[1];
-      a.size = d;
-    }
-    return a;
-  }
-  function aa(a) {
-    return a.rest.startsWith("/download/") ? !0 : !1;
-  }
-  function ba(a) {
-    return ca.test(a.rest) ? !0 : !1;
-  }
-  function da(a, b) {
-    var c = l(b), d = c.querySelector(".title-font .title");
-    d && (a.name = d.textContent);
-    c = c.getElementsByClassName("size pic");
-    c.length && (a.size = c[0].textContent.trim());
-    return a;
-  }
-  function ea(a) {
-    return fa.test(a.rest) ? !0 : !1;
-  }
-  function ga(a, b) {
-    var c = l(b), d = c.getElementsByClassName("sizetagtext");
-    d.length && (a.size = d[0].textContent);
-    if (c = c.getElementsByClassName("downloadfilename")) {
-      a.name = c[0].textContent;
-    }
-    return a;
-  }
-  function ha(a, b) {
-    var c = l(b);
-    a.name = c.getElementById("main").children[6].textContent;
-    return a;
-  }
-  function ia(a) {
-    return a.rest.startsWith("/v/") ? !0 : !1;
-  }
-  function ja(a, b) {
-    var c = l(b).getElementsByClassName("left")[0];
-    a.name = c.children[3].textContent;
-    a.size = c.children[6].textContent;
-    return a;
-  }
-  function ka(a, b) {
-    var c = l(b).getElementsByClassName("font14");
-    if (c.length) {
-      var c = la.exec(c[0].textContent) || [], d = c[2];
-      a.name = c[1];
-      a.size = d;
-    }
-    return a;
-  }
-  function ma(a, b) {
-    var c = l(b), d = c.getElementById("file_name");
-    d && (a.name = d.title);
-    c = c.getElementsByClassName("filename_normal");
-    c.length && (c = na.exec(c[0].textContent)) && (a.size = c[1]);
-    return a;
-  }
-  function oa(a) {
-    return a.rest.startsWith("/file/") ? !0 : !1;
-  }
-  function pa(a) {
-    return qa.test(a.rest) ? {type:"file"} : !1;
-  }
-  function ra(a, b) {
-    var c = b.type;
-    return sa[c]({url:a.href, type:c});
-  }
-  function ta(a) {
-    return a.rest.startsWith("/file/") ? !0 : !1;
-  }
-  function ua(a, b) {
-    var c = l(b);
-    c.getElementsByClassName("in").length ? (a.name = c.querySelector(".btm p a").textContent.trim(), a.size = c.querySelector(".btm div > strong").textContent) : a.status = "unknown";
-    return a;
-  }
-  function va(a) {
-    return wa.test(a.rest) ? !0 : !1;
-  }
-  function xa(a) {
-    return ya.file({url:a.href, type:"file"});
-  }
-  function za(a) {
-    return a.rest.startsWith("/d/") ? !0 : !1;
-  }
-  function Aa(a, b) {
-    var c = unescape(Ba.exec(b)[1]);
-    a.name = Ca.exec(c)[1];
-    a.size = Da.exec(b)[1];
-    return a;
-  }
-  function Ea(a) {
-    return D.test(a.rest) ? !0 : !1;
-  }
-  function Fa(a) {
-    var b = a.rest.replace(D, "/get/");
-    return E({host:a.host, rest:b, href:"http://" + a.host + b});
-  }
-  function Ga(a) {
-    return Ha.test(a.rest) ? !0 : !1;
-  }
-  function p(a) {
-    for (var b = 0;1024 <= a;++b, a /= 1024) {
-    }
-    return a.toFixed(1) + " " + ["B", "kiB", "MiB", "GiB", "TiB"][b];
-  }
-  function Ia(a) {
-    return (a = Ja.exec(a.rest)) ? {id:a[1]} : !1;
-  }
-  function Ka(a, b, c) {
-    return k("https://api.oboom.com/1/ls", b, c, JSON.parse).then(function(c) {
-      var b = c[0];
-      c = c[1];
-      switch(b) {
-        case 404:
-          a.status = "offline";
-          break;
-        case 200:
-          a.status = "online";
-          a.name = c.name;
-          a.size = p(c.size);
-          break;
-        default:
-          a.status = "unknown", a.reason = "Code: " + b;
-      }
-      return a;
-    });
-  }
-  function La(a, b) {
-    var c = b.id, d = {type:"file", url:a.href, id:c};
-    return k(d.url, F).then(function(a) {
-      a = {token:(Ma.exec(a) || [])[1], item:c, http_errors:0};
-      return Ka(d, F, a);
-    });
-  }
-  function Na(a) {
-    return a.rest.startsWith("/f/") ? {type:"folder"} : {type:"file"};
-  }
-  function Oa(a, b) {
-    var c = b.type;
-    return Pa[c]({url:a.href, type:c});
-  }
-  function G(a) {
-    var b = a.responseText;
-    a = a.status;
-    404 === a || 403 === a ? this.status = "offline" : (this.status = "unknown", this.reason = "Response: " + JSON.stringify(b || "") + "\nStatus : " + a);
-    return this;
-  }
-  function Qa(a, b) {
-    return k("https://drive.google.com" + b + "/folderview?usp=sharing&id=" + a.id).then(function(c) {
-      a.status = "online";
-      if (c = (Ra.exec(c) || [])[0]) {
-        c = JSON.parse(c.replace(Sa, '"$1"').replace(Ta, '"$1"').replace(Ua, "[").replace(Va, '","').replace(Wa, "]").replace(Xa, "]}").replace(Ya, "]").trim());
-        a.name = c.folderName;
-        a.children = [];
-        c = c.viewerItems;
-        for (var b = 0;b < c.length;++b) {
-          var e = c[b];
-          a.children.push({name:e[0], id:e[2], url:e[5], type:"file"});
-        }
-      }
-      return a;
-    }, G.bind(a));
-  }
-  function Za(a, b) {
-    return k("https://drive.google.com" + b + "/file/d/" + a.id + "/view?usp=sharing").then(function(c) {
-      a.status = "online";
-      if (c = $a.exec(c)) {
-        a.name = c[1];
-      }
-      return a;
-    }, G.bind(a));
-  }
-  function ab(a) {
-    var b = bb.exec(a.rest);
-    if (b) {
-      a = b[1] || "";
-      var c = b[2] || b[3], b = b[4];
-      switch(c) {
-        case "file":
-        ;
-        case "uc":
-        ;
-        case "document":
-        ;
-        case "open":
-        ;
-        case "spreadsheets":
-          c = "file";
-          break;
-        case "folderview":
-        ;
-        case "folder":
-          c = "folder";
-          break;
-        default:
-          return !1;
-      }
-      return {pref:a, id:b, type:c};
-    }
-    return !1;
-  }
-  function cb(a, b) {
-    var c = b.pref, d = b.id, e = b.type, f = {hostName:this.hostName, id:d, url:a.href, type:e};
-    return "file" === e ? Za(f, c) : "folder" === e ? Qa(f, c) : handleOther(f, d);
-  }
-  function H(a) {
-    var b = {weblink:a.weblink};
-    a.token && (b.token = a.token);
-    return k("https://cloud.mail.ru/api/v2/folder", {}, b, JSON.parse).then(function(c) {
-      c = c.body;
-      a.status = "online";
-      if ("storage" === c.kind) {
-        c = c.list[0], a.type = "file", a.name = c.name, a.size = p(c.size);
-      } else {
-        a.type = "folder";
-        a.name = c.name;
-        a.children = [];
-        c = c.list;
-        for (var b = 0;b < c.length;++b) {
-          var e = c[b], f = {name:e.name, weblink:e.weblink};
-          "file" === e.kind ? (f.type = "file", f.size = p(e.size)) : f.type = "folder";
-          a.children.push(f);
-        }
-      }
-      return a;
-    }, function(c) {
-      var b = c.responseText;
-      c = c.status;
-      a.status = 400 === c || 404 === c ? "offline" : "unknown";
-      b = JSON.stringify(b);
-      a.reason = "Response: " + b + "\nStatus : " + c;
-      return a;
-    });
-  }
-  function db(a) {
-    return (a = (eb.exec(a.rest) || [])[1]) ? {weblink:decodeURIComponent(a)} : null;
-  }
-  function fb(a, b) {
-    var c = {url:a.href, weblink:b.weblink};
-    return k("https://cloud.mail.ru/api/v2/tokens", null, null, JSON.parse).then(function(a) {
-      c.token = a.body.token;
-      return H(c);
-    }, function(a) {
-      if (403 === a.status) {
-        return H(c);
-      }
-      c.status = "unknown";
-      return c;
-    });
-  }
-  function I(a) {
-    for (var b = a.length << 2, c = new Uint8Array(b), d = 0;d < b;d += 4) {
-      var e = d >> 2;
-      c[d] = a[e] >> 24;
-      c[d + 1] = a[e] >> 16;
-      c[d + 2] = a[e] >> 8;
-      c[d + 3] = a[e];
-    }
-    return c;
-  }
-  function J(a) {
-    for (var b = [24, 16, 8, 0], c = Array(a.length + 3 >> 2), d = 0, e = a.length;d < e;++d) {
-      c[d >> 2] |= a[d] << b[d & 3];
-    }
-    return c;
-  }
-  function u(a) {
-    switch(a.length % 4) {
-      case 0:
-        break;
-      case 2:
-        a += "==";
-        break;
-      case 3:
-        a += "=";
-        break;
-      default:
-        throw Error("Invalid base64url string.");;
-    }
-    var b = a.length;
-    if (0 !== b % 4) {
-      throw Error("Invalid string. Length must be a multiple of 4");
-    }
-    var c;
-    c = "=" === a.charAt(b - 2) ? 2 : "=" === a.charAt(b - 1) ? 1 : 0;
-    for (var d = 0 < c ? b - 4 : b, b = new Uint8Array(.75 * b - c), e = 0, f = 0;f < d;f += 4) {
-      var h = m[a.charAt(f)] << 18 | m[a.charAt(f + 1)] << 12 | m[a.charAt(f + 2)] << 6 | m[a.charAt(f + 3)];
-      b[e++] = (h & 16711680) >> 16;
-      b[e++] = (h & 65280) >> 8;
-      b[e++] = h & 255;
-    }
-    2 === c ? (h = m[a.charAt(f)] << 2 | m[a.charAt(f + 1)] >> 4, b[e++] = h & 255) : 1 === c && (h = m[a.charAt(f)] << 10 | m[a.charAt(f + 1)] << 4 | m[a.charAt(f + 2)] >> 2, b[e++] = h >> 8 & 255, b[e++] = h & 255);
-    return b;
-  }
-  function w(a, b) {
-    var c = "string" === typeof a ? u(a) : a, d = "string" === typeof b ? u(b) : b;
-    32 <= d.length && (d = J(d), d = I([d[0] ^ d[4], d[1] ^ d[5], d[2] ^ d[6], d[3] ^ d[7]]));
-    c = v.decrypt(c, d, !1);
-    for (d = c.length - 1;0 <= d && 0 === c[d];--d) {
-    }
-    c = c.subarray(4, d + 1);
-    return JSON.parse(gb.decode(c));
-  }
-  function K(a, b) {
-    var c = "string" === typeof a ? u(a) : a, d = "string" === typeof b ? u(b) : b;
-    if (16 === c.length) {
-      return v.decrypt(c, d, !1);
-    }
-    if (32 <= c.length) {
-      var e = v.decrypt(c.subarray(0, 16), d, !1), c = v.decrypt(c.subarray(16, 32), d, !1), d = e.length, f = new Uint8Array(d + c.length);
-      f.set(e, 0);
-      f.set(c, d);
-      e = J(f);
-      return I([e[0] ^ e[4], e[1] ^ e[5], e[2] ^ e[6], e[3] ^ e[7]]);
-    }
-    throw Error("Invalid key.");
-  }
-  function L(a, b, c, d) {
-    return C(a, hb, b).then(function(a) {
-      var b = c.exec(a);
-      if (b) {
-        return a = b[1], a |= 0, -9 === a || -16 === a || -6 === a ? d.status = "offline" : (d.status = "unknown", d.reason = "C\u00f3digo: " + a), d;
-      }
-      d.status = "online";
-      return ib[d.type](a, d);
-    }, function(e) {
-      var f = e.responseText;
-      e = e.status;
-      if (500 === e) {
-        return L(a, b, c, d);
-      }
-      d.status = "unknown";
-      f = JSON.stringify(f);
-      d.reason = "Resp: " + f + " | Status: " + e;
-      return d;
-    });
-  }
-  function jb(a) {
-    a = kb.exec(a.rest) || [];
-    var b = a[2];
-    return b ? {id:b, key:a[3], type:a[1] ? "folder" : "file"} : null;
-  }
-  function lb(a, b) {
-    var c = {url:a.href, id:b.id, key:b.key, type:b.type}, d, e, f;
-    "file" === c.type ? (d = /^\[(-*\d+)]/, e = '[{"a":"g","p":"' + c.id + '"}]', f = "https://eu.api.mega.co.nz/cs?id=0") : (d = /^(-*\d+)/, e = '[{"a":"f","c":1,"r":1}]', f = "https://eu.api.mega.co.nz/cs?id=0&n=" + c.id);
-    return L(f, e, d, c);
-  }
-  function mb(a) {
-    return (a = (nb.exec(a.rest) || [])[1]) ? {shareId:a} : null;
-  }
-  function ob(a) {
-    return k("https://www.amazon.com/drive/v1/nodes/" + (a.id || a.infoId) + "/children?customerId=&resourceVersion=V2&ContentType=JSON&limit=200&sort=%5B%22kind+DESC%22%2C+%22name+ASC%22%5D&tempLink=true&shareId=" + a.shareId, {Referer:a.url}, "", JSON.parse).then(function(b) {
-      b = b.data[0];
-      a.status = "online";
-      a.id = b.id;
-      a.name = b.name;
-      "FILE" === b.kind ? (a.type = "file", a.size = p(b.contentProperties.size)) : a.type = "folder";
-      return a;
-    }, n.bind(a));
-  }
-  function pb(a) {
-    return k("https://www.amazon.com/drive/v1/shares/" + a.shareId + "?resourceVersion=V2&ContentType=JSON&asset=ALL", {Referer:a.url}, "", JSON.parse).then(function(b) {
-      b = b.nodeInfo;
-      a.status = "online";
-      a.infoId = b.id;
-      return ob(a);
-    }, n.bind(a));
-  }
-  function qb(a, b) {
-    return pb({url:a.href, shareId:b.shareId});
-  }
-  function rb(a) {
-    return a.rest.startsWith("/f/") ? !0 : !1;
-  }
-  function M(a) {
-    return (a = sb.exec(a)) ? {href:a[0], host:a[2], rest:a[3] || "/"} : null;
-  }
-  function x(a) {
-    var b = M(a), c;
-    if (b) {
-      if (b = N.test(b.href) ? M(b.rest.substring(2)) : b, b) {
-        if (c = y[b.host.replace(tb, "")]) {
-          if ("function" === typeof c.checkUrl) {
-            var d = c.checkUrl(b);
-            if (d) {
-              return c.checkStatus(b, d);
-            }
-            b = "Tipo de URL n\u00e3o suportada para este servidor.";
-          } else {
-            return c.checkStatus(b);
-          }
-        } else {
-          b = "Servidor n\u00e3o suportado ou desativado.";
-        }
-      } else {
-        b = "URL inv\u00e1lida ap\u00f3s remover anonimizador.";
-      }
-    } else {
-      b = "URL inv\u00e1lida.";
-    }
-    return Promise.resolve({url:a, status:"unknown", reason:b});
-  }
-  function ub(a) {
-    var b = a.beforeEach, c = a.afterEach, d = a.context || document;
-    if (!d.getElementsByClassName("upload_links").length) {
-      return Promise.resolve("Ops...");
-    }
-    a = [];
-    var d = d.getElementsByClassName("upload_link"), e = d.length;
-    c.n = e;
-    for (var f = 0;f < e;++f) {
-      var h = d[f], g = h.lastElementChild.firstElementChild, h = {linkE:h, statusE:g, url:h.firstElementChild.firstChild.href, status:g.classList.contains("online") ? "online" : "offline"};
-      b(h);
-      h = x(h.url).then(c.bind(this, h));
-      a.push(h);
-    }
-    return Promise.all(a);
-  }
-  function vb() {
-    return new Promise(function(a, b) {
-      "loading" !== document.readyState ? a() : document.addEventListener("DOMContentLoaded", function() {
-        a();
-      });
-    });
-  }
-  function wb(a, b) {
-    a.statusE.classList.add("loading");
-  }
-  function q(a, b) {
-    var c = a.statusE;
-    a.linkE.style.backgroundColor = xb[b.status];
-    --q.n;
-    !q.checkInDone && 0 === q.n || "unknown" !== b.status && a.status !== b.status ? function() {
-      var d = "unknown" === b.status ? "online" === a.status : "online" === b.status;
-      R({id:c.id, online:d}).then(function() {
-        var a = c.classList;
-        d ? (a.add("online"), a.remove("offline")) : (a.add("offline"), a.remove("online"));
-        a.remove("loading");
-      });
-      q.checkInDone = !0;
-    }() : c.classList.remove("loading");
-    return {row:a, node:b};
-  }
-  function yb() {
-    vb().then(function() {
-      var a = document.getElementsByClassName("upload_links"), b = document.getElementsByClassName("link_password");
-      a.length && 0 === b.length ? (a[0].scrollIntoView(), ub({beforeEach:wb, afterEach:q})) : console.warn("n\u00e3o h\u00e1 http links");
-    });
-  }
-  if (window.top === window.self) {
-    var S = new DOMParser, U = /\u00b7\s*(.+)$/, zb = {hostName:"DropboxCom", host:["dropbox.com"], getInfo:T, checkStatus:g, regex:{linkOff:/class="err">/, linkOn:/id="default_content_download_button"/}}, Ab = {hostName:"_2sharedCom", host:["2shared.com"], checkStatus:V}, X = /\((.+)\)/, Bb = {hostName:"HugefilesNet", host:["hugefiles.net"], checkStatus:g, getInfo:W, regex:{linkOff:/www.hugefiles.net\/404.html"|File Not Found/, linkOn:/download-file-btn-f"/}}, Z = /\s(.+)\s\[(.+)\]/, Cb = {hostName:"EzfileCh", 
-    host:["ezfile.ch"], getInfo:Y, checkStatus:g, regex:{linkOff:/was either removed or did not exist/, linkOn:/class="fNameLink"/}}, Db = {hostName:"LetitbitNet", host:["letitbit.net"], checkUrl:aa, checkStatus:g, regex:{linkOff:/id="captcha"/, fileName:/file-info-name">(.+)&nbsp;/, fileSize:/"file-info-size">\[(.+)\]/}}, ca = /^\/\w{7}(\/|$)/, Eb = {hostName:"GeTt", host:["ge.tt"], checkUrl:ba, checkStatus:g, getInfo:da}, fa = /^\/\w{5}(\/|$|\?)/, Fb = {hostName:"SpeedyshareCom", host:["speedyshare.com"], 
-    checkUrl:ea, checkStatus:g, getInfo:ga}, Gb = {hostName:"_180uploadCom", host:["180upload.com"], checkStatus:g, getInfo:ha, regex:{linkOff:/file expired or deleted/, linkOn:/id="btn_download"/}}, Hb = {hostName:"ZippyshareCom", host:["zippyshare.com"], checkUrl:ia, checkStatus:g, getInfo:ja, regex:{linkOff:/does not exist/, linkOn:/id="dlbutton"/}}, la = /Downloading "(.+)" \((.+)\)/, Ib = {hostName:"SecureuploadEu", host:["secureupload.eu"], checkStatus:g, getInfo:ka, regex:{linkOff:/could not be found/, 
-    linkOn:/value="download1"/}}, Jb = {hostName:"SoniclockerCom", host:["soniclocker.com"], checkStatus:g, regex:{linkOn:/class="download-content"/, fileName:/class="name">(.+?)</, fileSize:/class="size">(.+?)</}}, na = /\((.+)\)/, Kb = {hostName:"UploadableCh", host:["uploadable.ch"], checkStatus:g, getInfo:ma, regex:{linkOff:/Page not found|File not available|no longer available/, linkOn:/id="file_name"/}}, Lb = {hostName:"FilefactoryCom", host:["filefactory.com"], checkUrl:oa, checkStatus:g, 
-    regex:{linkOff:/alert alert-danger/, linkOn:/id="file_name"/, fileName:/<h2>(.+)</, fileSize:/id="file_info">([\d.,]+\s\w+)/}}, qa = /^\/\w{12}/, Mb = /File was not found/, Nb = /download-file-block/, Ob = /Download file\s(.+)\s\((.+)\)/, sa = {file:function(a) {
-      return k(a.url).then(function(b) {
-        var c = l(b);
-        Mb.test(b) ? a.status = "offline" : Nb.test(b) ? (a.status = "online", b = Ob.exec(c.title), a.name = b[1], a.size = b[2]) : a.status = "unknown";
-        return a;
-      }, n.bind(a));
-    }}, Pb = {hostName:"TurbobitNet", host:["turbobit.net"], checkUrl:pa, checkStatus:ra}, Qb = {hostName:"RapidgatorNet", host:["rapidgator.net"], checkUrl:ta, checkStatus:g, getInfo:ua, regex:{linkOff:/File not found/}}, wa = /^\/\w{12}(?=$|\/|\?)/, ya = {file:function(a) {
-      return k(a.url).then(function(b) {
-        b = l(b);
-        var c = b.getElementsByClassName("para_title")[0].textContent;
-        if (c.startsWith("File not found")) {
-          a.status = "offline";
-        } else {
-          if (b.querySelector('input[value="download2"]')) {
-            if (a.status = "online", b = /(.+)\s\((.+)\)/.exec(c)) {
-              a.name = b[1], a.size = b[2];
-            }
-          } else {
-            a.status = "unknown";
-          }
-        }
-        return a;
-      }, function(b) {
-        a.status = "unknown";
-        return a;
-      });
-    }}, Rb = {hostName:"UptoboxCom", host:["uptobox.com"], checkUrl:va, checkStatus:xa}, Sb = {hostName:"SolidfilesCom", host:["solidfiles.com"], checkUrl:za, checkStatus:g, regex:{linkOn:/id="file"/, fileName:/title="(.+)"/, fileSize:/<p class="meta">(.+),/}}, Ba = /unescape\('(.+)'/, Ca = /title="(.+)">/, Da = /"file_size">.+?(\d.+?)</, Tb = {hostName:"DepositfilesOrg", host:["depositfiles.org", "dfiles.eu"], checkStatus:g, getInfo:Aa, regex:{linkOff:/no_download_msg/, linkOn:/class="downloadblock"/}}, 
-    D = /^\/(archive|zip|rar|file|video)\//, E = void 0, O = {hostName:"_4sharedCom", host:["4shared.com"], checkUrl:Ea, checkStatus:Fa, headers:{Cookie:"4langcookie=en"}, regex:{linkOff:/link that you requested is not valid/, linkOn:/class="fileName/, fileName:/f24">(.+)<\/h1/, fileSize:/floatLeft">\s*(\d+.+?)\s\|/}}, E = g.bind(O), Ha = /^\/\w{12}(\/|$|\?)/, Ub = {hostName:"BruploadNet", host:["brupload.net"], checkUrl:Ga, checkStatus:g, regex:{linkOff:/Arquivo Nao Encontrado/, linkOn:/Baixar Arquivo/, 
-    fileName:/<small>(.+)<\/s/, fileSize:/\((\d.+)\)/}}, r = {hostName:"UserscloudCom", host:["userscloud.com"], checkStatus:g, regex:{linkOff:/download is no longer available/, linkOn:/value="download2"/, fileName:/\?q=(.+?)"/, fileSize:/<div class="ribbon">(.+?)</}}, Vb = {hostName:"TusfilesNet", host:["tusfiles.net"], checkUrl:r.checkUrl, checkStatus:r.checkStatus, regex:{linkOff:r.regex.linkOff, linkOn:r.regex.linkOn, fileName:/#ffffff">(.+)<\/F/, fileSize:/Size:<\/th>\s+<.+">(.+?)</m}}, F = 
-    {Referer:"https://www.oboom.com"}, Ja = /^\/(\w{8})(?:$|\/)/, Ma = /Session\s+:\s+"(\w{8}-(?:\w{4}-){3}\w{12})"}/, Wb = {hostName:"OboomCom", host:["oboom.com"], checkUrl:Ia, checkStatus:La}, Xb = {hostName:"1fichierCom", host:["1fichier.com"], checkStatus:g, regex:{linkOff:/durant 60 jours|File not found/i, linkOn:/File Name :/i, fileName:/File Name :<\/td>[\s\w<="]+>(.+)</m, fileSize:/Size :<\/td>[\s\w<="]+>(.+)</m}}, Yb = {hostName:"MediafireCom", host:["mediafire.com"], checkStatus:g, headers:{Cookie:"noCookie=true"}, 
-    regex:{linkOff:/error_msg_title/, linkOn:/class="dl-btn-container"/, fileName:/class="fileName">(.+?)</, fileSize:/File size: <span>(.+?)</}}, Pa = {folder:function(a) {
-      return k(a.url).then(function(b) {
-        b = l(b);
-        a.status = "online";
-        a.name = b.title;
-        a.children = [];
-        b = b.querySelectorAll("#fileList td.file");
-        for (var c = 0, d = b.length;c < d;++c) {
-          var e = b[c];
-          a.children.push({name:e.children[0].textContent, size:e.children[1].textContent, type:"file", url:e.children[0].firstChild.href});
-        }
-        return a;
-      }, n.bind(a));
-    }, file:function(a) {
-      return k(a.url).then(function(b) {
-        b = l(b);
-        b.getElementById("download") ? (b = b.getElementById("filename"), a.status = "online", a.name = b.textContent, a.size = b.nextElementSibling.textContent) : (a.status = "unknown", a.type = null);
-        return a;
-      }, n.bind(a));
-    }}, Zb = {name:"UploadedNet", host:["ul.to", "uploaded.net"], checkUrl:Na, checkStatus:Oa}, Sa = /(\w+)\s*(?=:[^\/])/g, Ta = /'\s*(.+)\s*'/g, Ua = /\[,+/g, Va = /"\s*,+\d?,+"/g, Wa = /,+\d]/g, Xa = /]\s*,}/g, Ya = /]\s*/g, Ra = /{folder(?:.\s*)+?}/, $a = /,\[,"(.+?)",,/, bb = /^(\/a\/g\.pl|\/a\/gazeta\.pl)?\/(?:(file|document|spreadsheets|folder)\/d\/|(folderview|uc|open)\?id=)([\w-]+)/, $b = {hostName:"GoogleCom", host:["docs.google.com", "drive.google.com"], checkUrl:ab, checkStatus:cb}, eb = 
-    /^\/public(\/.+)/, ac = {name:"CloudmailRu", host:["cloud.mail.ru"], checkUrl:db, checkStatus:fb}, gb = new TextDecoder, m = function() {
-      for (var a = {}, b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split(""), c = 0;c < b.length;++c) {
-        a[b[c]] = c;
-      }
-      a["+"] = c;
-      a["-"] = c;
-      a["/"] = c + 1;
-      a._ = c + 1;
-      return a;
-    }(), v = asmCrypto.AES_CBC, hb = {"Content-Type":"text/plain; charset=UTF-8", Referer:"https://mega.nz"}, ib = {folder:function(a, b) {
-      var c = JSON.parse(a)[0].f, d = c[0], e = b.key, f = K(d.k.split(":")[1], e);
-      b.name = w(d.a, f).n;
-      b.parent = "#";
-      b.id = d.h;
-      b.children = [];
-      d = {};
-      d[b.id] = b;
-      for (var h = 1;h < c.length;++h) {
-        var g = c[h], k = {id:g.h, parent:g.p};
-        1 === g.t ? (k.type = "folder", k.children = [], d[k.id] = k) : 0 === g.t && (k.type = "file", k.size = p(g.s));
-        f = K(g.k.split(":")[1], e);
-        k.name = w(g.a, f).n;
-        d[k.parent].children.push(k);
-      }
-      return b;
-    }, file:function(a, b) {
-      var c = JSON.parse(a)[0];
-      b.size = p(c.s);
-      b.key && (b.name = w(c.at, b.key).n);
-      return b;
-    }}, kb = /^\/#(F)?!(\w{8})!([\w-]+)$/, bc = {name:"Mega", host:["mega.nz", "mega.co.nz"], checkUrl:jb, checkStatus:lb}, nb = /^\/clouddrive\/share\/([\w-]{43})/, cc = {name:"AmazonCom", host:["amazon.com"], checkUrl:mb, checkStatus:qb}, P = {hostName:"OpenloadCo", host:["openload.io", "openload.co"], checkUrl:rb, checkStatus:g, regex:{linkOff:/deleted by the owner or was removed/, linkOn:/container file-details/, fileName:/class="other-title-bold">(.+?)</, fileSize:/File size:\s(.+?)</}};
-    g.bind(P);
-    var dc = {OpenloadCo:P, AmazonCom:cc, MegaNz:bc, CloudMailRu:ac, GoogleCom:$b, UploadedNet:Zb, MediafireCom:Yb, _1fichierCom:Xb, OboomCom:Wb, UserscloudCom:r, TusfilesNet:Vb, BruploadNet:Ub, _4sharedCom:O, DepositfilesOrg:Tb, SolidfilesCom:Sb, UptoboxCom:Rb, RapidgatorNet:Qb, TurbobitNet:Pb, FilefactoryCom:Lb, UploadableCh:Kb, SoniclockerCom:Jb, SecureuploadEu:Ib, ZippyshareCom:Hb, _180uploadCom:Gb, SpeedyshareCom:Fb, GeTt:Eb, LetitbitNet:Db, EzfileCh:Cb, HugefilesNet:Bb, _2sharedCom:Ab, DropboxCom:zb}, 
-    sb = /^(https?:)\/\/([\w\-\.]+)(\/.*|$)/, N = void 0, y = Object.create(null), ec = "hiderefer.com anonymz.com blankrefer.com hidemyass.com nullrefer.com refhide.com href.li".split(" "), tb = /^(?:www(?:\.|\d{1,2}\.(?=zippyshare))|\w{9}(?:\.(?=letitbit)|\w\.(?=1fichier)))/;
-    x.init = function() {
-      N = new RegExp("^https?:\\/\\/(?:www\\.)?(?:" + ec.join("|").replace(/\./g, "\\.") + ")\\/\\?", "i");
-      z(dc, function(a, b) {
-        for (var c = b.host, d = 0, e = c.length;d < e;++d) {
-          y[c[d]] = b;
-        }
-      });
-    }();
-    x.hosts = y;
-    var t, xb = (t = {}, t.online = "rgba(46, 204, 113, 0.2)", t.offline = "rgba(231, 76, 60, 0.2)", t.unknown = "rgba(255, 247, 163, 0.9)", t);
-    window.location.pathname.startsWith("/showthread.php") && yb();
-  }
-})();
+'use strict';(function(){function X(){}function t(a,b){for(var c in b)a[c]=b[c];return a}function Ba(a,b){for(var c in b)a[c]=1;return a}function k(a){a.parentNode.removeChild(a)}function Ca(a,b){for(var c=0;c<a.length;c+=1)a[c]&&a[c].d(b)}function e(a){return document.createElement(a)}function g(a){return document.createTextNode(a)}function A(a,b,c){a.addEventListener(b,c,!1)}function B(a,b,c){a.removeEventListener(b,c,!1)}function Y(a,b){a._handlers=Object.create(null);a._bind=b._bind;a.options=
+b;a.root=b.root||a;a.store=a.root.store||b.store}function G(a){for(;a&&a.length;)a.shift()()}function na(a){const b=typeof a;return"string"===b?a:"object"===b?Object.keys(a).map(function(b){return encodeURIComponent(b)+"="+encodeURIComponent(a[b])}).join("&"):""}function Q(a){var b=a.url,c=a.method;void 0===c&&(c="GET");var d=a.headers;void 0===d&&(d={});var f=a.data,h=a.context,m=a.timeout;"GET"===c?(a=na(f))&&(b+="?"+a):f&&(d["Content-Type"]?f=0<=d["Content-Type"].indexOf("json")?JSON.stringify(f):
+na(f):(d["Content-Type"]="application/x-www-form-urlencoded; charset=utf-8",f=na(f)));return new Promise(function(a,q){GM_xmlhttpRequest({url:b,method:c,headers:d,data:f,context:h,timeout:m,onload:function(b){a(b)},onerror:function(a){q(new Da({reason:"unknown",url:b,method:c,headers:d,data:f,status:a.status,responseText:a.responseText}))},ontimeout:function(a){q(new Da({reason:"timeout",url:b,method:c,headers:d,data:f,status:a.status,responseText:a.responseText}))}})})}function K(a){var b=a[0];return new Promise(function(a,
+d){let c,h,m;c=this.headers;h=this.regex;return Q({url:b,headers:c}).then(function(b){try{return m=b.responseText,h&&h.linkOn&&h.linkOff?h.linkOff.test(m)?a("OFF"):h.linkOn.test(m)?a("ON"):a("UNDEF"):d(Error("Missing regex for this host"))}catch(q){return d(q)}},d)}.bind(this))}function L(a){var b=a[0];return new Promise(function(a,d){let c;return Q({url:b}).then(function(b){try{c=b;switch(c.status){case 200:return a("ON");case 403:case 404:case 451:return a("OFF")}return a("UNDEF")}catch(m){return d(m)}},
+d)})}function Ra(a){let b;for(var c=0,d=Sa;c<d.length;c+=1){const f=d[c];if(b=f.regexHref.exec(a))return{host:f,matcher:b}}return{}}function oa(a){var b=a.linkid,c=a.status;a=a.token;console.log("checkin() "+b+" "+c+" "+a);return Q({url:"postador.php",method:"POST",data:{automatic:!1,do:"updatestatus",status:c,linkid:b,securitytoken:a}})}function Ea(a){return new Promise(function(b,c){a.linksOn=0;a.linksOff=0;a.linksUnk=0;a.linksChanged=0;var d=function(){try{return a.date=(new Date).getTime(),b()}catch(h){return c(h)}},
+f=function(a){try{return console.error(a),d()}catch(m){return c(m)}};try{let b,c,e,q,l;return Z.getTopicInfo(a.id).then(function(h){try{b=h;a.title=b.title;a.uploader=b.uploader;a.totalOflinks=b.links.length;c=[];var m=b;e=m.links;e.forEach(function(a){c.push(pa.check(a.url))});return Promise.all(c).then(function(c){try{var h=function(){return d()};q=c;l=[];console.log("-----\n\n");console.log("## "+a.title+" - "+a.id+" ##");for(let b=0,c=e.length;b<c;b+=1){const c=q[b],d=e[b];"UNDEF"!==c?(c!==d.oldStatus&&
+(console.log("Status alterado "+d.url+": "+d.oldStatus+" => "+c),l.push({linkid:d.linkid,status:c})),"ON"===c?a.linksOn+=1:"OFF"===c&&(a.linksOff+=1)):a.linksUnk+=1;console.log(d.url+": "+c)}console.log("-----\n\n");if(l.length){let c;a.linksChanged=l.length;c=[];for(let a=0,d=l.length;a<d;a+=1){const d=l[a],f=Z.checkIn({linkid:d.linkid,token:b.token,status:"ON"===d.status});c.push(f)}return Promise.all(c).then(function(a){try{return h.call(this)}catch(y){return f(y)}}.bind(this),f)}var m=function(){return h.call(this)};
+if(0<e.length){let a;a=e[0];return Z.checkIn({linkid:a.linkid,token:b.token,status:"ON"===a.oldStatus}).then(function(a){try{return m.call(this)}catch(y){return f(y)}}.bind(this),f)}return m.call(this)}catch(p){return f(p)}}.bind(this),f)}catch(r){return f(r)}}.bind(this),f)}catch(h){f(h)}})}function Ta(a){var b=a.sorting;return a.topics.sort(function(a,d){a=a[b.by];d=d[b.by];if(a===d)return 0;var c=b.asc?[-1,1]:[1,-1],h=c[0];c=c[1];return a<d?h:c})}function Ua(a){return a.topics.filter(function(a){return a.checked}).length}
+function Va(){return new Promise(function(a,b){let c;return GM.getValue("topics","[]").then(function(d){try{return c=JSON.parse(d),0<c.length&&this.set({topics:c}),a()}catch(f){return b(f)}}.bind(this),b)}.bind(this))}function Wa(){var a=e("style");a.id="svelte-tcbu4p-style";a.textContent=".table-style.svelte-tcbu4p{border-collapse:initial;border-spacing:15px}";document.head.appendChild(a)}function Xa(a,b){function c(){M=!0;a.set({topicsStr:p.value});M=!1}function d(c){a.addTopics(b.topicsStr)}function f(b){a.checkTopics()}
+function h(b){a.toggleAll(this.checked)}function m(b){a.sortItem({by:"id"})}function D(b){a.sortItem({by:"title"})}function q(b){a.sortItem({by:"uploader"})}function l(b){a.sortItem({by:"totalOflinks"})}function n(b){a.sortItem({by:"linksOn"})}function C(b){a.sortItem({by:"linksOff"})}function r(b){a.sortItem({by:"linksUnk"})}function u(b){a.sortItem({by:"linksChanged"})}function z(b){a.sortItem({by:"date"})}var p,M=!1,y,w,E,F,ka,H,I,J,x,ea,la,t,K,G,wa,aa,xa,R,fa,ya,P,ha,v,za,T,ca,Fa,ia,Ga,N,Q,da,
+U,ja,Ha,S,ma,sa,Ia,L,Y,ta,Z,ua,V,W,ba,X,na,oa,pa,qa,ra,va,O=b.topics&&0<b.topics.length&&Ja(a,b);return{c:function(){p=e("textarea");y=g("\n");w=e("br");E=g("\n");F=e("br");ka=g("\n  ");H=e("button");H.textContent="Adicionar";I=g("\n");J=e("br");x=g("\n");ea=e("br");la=g("\n");t=e("br");K=g("\n");G=e("br");wa=g("\n");aa=e("button");aa.textContent="Verificar uploads";xa=g("\n");R=e("img");ya=g("\n");P=e("table");ha=e("thead");v=e("tr");za=e("th");T=e("input");Fa=g("\n      ");ia=e("th");ia.innerHTML=
+'<abbr title="ID do t\u00f3pico">ID</abbr>';Ga=g("\n      ");N=e("th");N.textContent="T\u00edtulo";Q=g("\n      ");da=e("th");da.textContent="Uploader";U=g("\n      ");ja=e("th");ja.innerHTML='<abbr title="Total de links">Total de Links</abbr>';Ha=g("\n      ");S=e("th");S.innerHTML='<abbr title="N\u00ba de links online">ON</abbr>';ma=g("\n      ");sa=e("th");sa.innerHTML='<abbr title="N\u00ba de links offline">OFF</abbr>';Ia=g("\n      ");L=e("th");L.innerHTML='<abbr title="N\u00ba de links com status indefinido">Desc.</abbr>';
+Y=g("\n      ");ta=e("th");ta.innerHTML='<abbr title="N\u00ba de links com status alterados">Alterados</abbr>';Z=g("\n      ");ua=e("th");ua.innerHTML='<abbr title="\u00daltima verifica\u00e7\u00e3o">Data da verifica\u00e7\u00e3o</abbr>';V=g("\n      ");W=e("th");ba=g("\n      ");X=e("th");na=g("\n      ");oa=e("th");pa=g("\n  ");qa=e("tfoot");ra=g("\n  ");va=e("tbody");O&&O.c();A(p,"input",c);p.rows="10";p.cols="100";p.placeholder="Adicionar links. Um por linha.\nExemplo: https://filewarez.tv/showthread.php?id=814988";
+A(H,"click",d);H.className="button";A(aa,"click",f);aa.className="button";R.alt="loading";R.hidden=fa=!b.loading;R.src="images/misc/13x13progress.gif";A(T,"change",h);T.setAttribute("type","checkbox");T.checked=ca=0<b.topics.length&&b.numChecked===b.topics.length;A(ia,"click",m);A(N,"click",D);A(da,"click",q);A(ja,"click",l);A(S,"click",n);A(sa,"click",C);A(L,"click",r);A(ta,"click",u);A(ua,"click",z);P.className="table-style svelte-tcbu4p"},m:function(a,c){a.insertBefore(p,c);p.value=b.topicsStr;
+a.insertBefore(y,c);a.insertBefore(w,c);a.insertBefore(E,c);a.insertBefore(F,c);a.insertBefore(ka,c);a.insertBefore(H,c);a.insertBefore(I,c);a.insertBefore(J,c);a.insertBefore(x,c);a.insertBefore(ea,c);a.insertBefore(la,c);a.insertBefore(t,c);a.insertBefore(K,c);a.insertBefore(G,c);a.insertBefore(wa,c);a.insertBefore(aa,c);a.insertBefore(xa,c);a.insertBefore(R,c);a.insertBefore(ya,c);a.insertBefore(P,c);P.appendChild(ha);ha.appendChild(v);v.appendChild(za);za.appendChild(T);v.appendChild(Fa);v.appendChild(ia);
+v.appendChild(Ga);v.appendChild(N);v.appendChild(Q);v.appendChild(da);v.appendChild(U);v.appendChild(ja);v.appendChild(Ha);v.appendChild(S);v.appendChild(ma);v.appendChild(sa);v.appendChild(Ia);v.appendChild(L);v.appendChild(Y);v.appendChild(ta);v.appendChild(Z);v.appendChild(ua);v.appendChild(V);v.appendChild(W);v.appendChild(ba);v.appendChild(X);v.appendChild(na);v.appendChild(oa);P.appendChild(pa);P.appendChild(qa);P.appendChild(ra);P.appendChild(va);O&&O.m(va,null)},p:function(c,d){b=d;M||(p.value=
+b.topicsStr);c.loading&&fa!==(fa=!b.loading)&&(R.hidden=fa);(c.topics||c.numChecked)&&ca!==(ca=0<b.topics.length&&b.numChecked===b.topics.length)&&(T.checked=ca);b.topics&&0<b.topics.length?O?O.p(c,b):(O=Ja(a,b),O.c(),O.m(va,null)):O&&(O.d(1),O=null)},d:function(a){a&&k(p);B(p,"input",c);a&&(k(y),k(w),k(E),k(F),k(ka),k(H));B(H,"click",d);a&&(k(I),k(J),k(x),k(ea),k(la),k(t),k(K),k(G),k(wa),k(aa));B(aa,"click",f);a&&(k(xa),k(R),k(ya),k(P));B(T,"change",h);B(ia,"click",m);B(N,"click",D);B(da,"click",
+q);B(ja,"click",l);B(S,"click",n);B(sa,"click",C);B(L,"click",r);B(ta,"click",u);B(ua,"click",z);O&&O.d()}}}function Ka(a,b){function c(){b.each_value[b.topic_index].checked=h.checked;a.set({processedTopics:b.processedTopics})}var d,f,h,m,D,q=b.topic.id,l,n,C,r,u=b.topic.title||"-",z,p,M,y,w=b.topic.uploader||"-",E,F,ka,H=b.topic.totalOflinks||"0",I,J,x,ea=b.topic.linksOn||"0",la,t,K,G=b.topic.linksOff||"0",L,aa,Q,R=b.topic.linksUnk||"0",fa,Y,P,ha=b.topic.linksChanged||"0",v,Z,T,ca=b.topic.date&&
+(new Date(b.topic.date)).toString()||"-",V,ia,W,N,ba,da,U,ja,X,S,ma;return{c:function(){d=e("tr");f=e("td");h=e("input");m=g("\n      ");D=e("th");l=g(q);n=g("\n      ");C=e("td");r=e("a");z=g(u);M=g("\n      ");y=e("td");E=g(w);F=g("\n      ");ka=e("td");I=g(H);J=g("\n      ");x=e("td");la=g(ea);t=g("\n      ");K=e("td");L=g(G);aa=g("\n      ");Q=e("td");fa=g(R);Y=g("\n      ");P=e("td");v=g(ha);Z=g("\n      ");T=e("td");V=g(ca);ia=g("\n      ");W=e("td");N=e("button");N.textContent="Verificar";
+ba=g("\n      ");da=e("td");U=e("button");U.textContent="Deletar";ja=g("\n      ");X=e("td");S=e("img");A(h,"change",c);h.setAttribute("type","checkbox");r.href=p="showthread.php?t="+b.topic.id;r.target="_blank";r.rel="noopener noreferrer";N._svelte={component:a,ctx:b};A(N,"click",La);N.className="button";U._svelte={component:a,ctx:b};A(U,"click",Ma);U.className="button";S.alt="loading";S.hidden=ma=!b.topic.loading;S.src="images/misc/13x13progress.gif"},m:function(a,c){a.insertBefore(d,c);d.appendChild(f);
+f.appendChild(h);h.checked=b.topic.checked;d.appendChild(m);d.appendChild(D);D.appendChild(l);d.appendChild(n);d.appendChild(C);C.appendChild(r);r.appendChild(z);d.appendChild(M);d.appendChild(y);y.appendChild(E);d.appendChild(F);d.appendChild(ka);ka.appendChild(I);d.appendChild(J);d.appendChild(x);x.appendChild(la);d.appendChild(t);d.appendChild(K);K.appendChild(L);d.appendChild(aa);d.appendChild(Q);Q.appendChild(fa);d.appendChild(Y);d.appendChild(P);P.appendChild(v);d.appendChild(Z);d.appendChild(T);
+T.appendChild(V);d.appendChild(ia);d.appendChild(W);W.appendChild(N);d.appendChild(ba);d.appendChild(da);da.appendChild(U);d.appendChild(ja);d.appendChild(X);X.appendChild(S)},p:function(a,c){b=c;h.checked=b.topic.checked;a.processedTopics&&q!==(q=b.topic.id)&&(l.data=q);a.processedTopics&&u!==(u=b.topic.title||"-")&&(z.data=u);a.processedTopics&&p!==(p="showthread.php?t="+b.topic.id)&&(r.href=p);a.processedTopics&&w!==(w=b.topic.uploader||"-")&&(E.data=w);a.processedTopics&&H!==(H=b.topic.totalOflinks||
+"0")&&(I.data=H);a.processedTopics&&ea!==(ea=b.topic.linksOn||"0")&&(la.data=ea);a.processedTopics&&G!==(G=b.topic.linksOff||"0")&&(L.data=G);a.processedTopics&&R!==(R=b.topic.linksUnk||"0")&&(fa.data=R);a.processedTopics&&ha!==(ha=b.topic.linksChanged||"0")&&(v.data=ha);a.processedTopics&&ca!==(ca=b.topic.date&&(new Date(b.topic.date)).toString()||"-")&&(V.data=ca);N._svelte.ctx=b;U._svelte.ctx=b;a.processedTopics&&ma!==(ma=!b.topic.loading)&&(S.hidden=ma)},d:function(a){a&&k(d);B(h,"change",c);
+B(N,"click",La);B(U,"click",Ma)}}}function Ja(a,b){for(var c,d=b.processedTopics,f=[],h=0;h<d.length;h+=1)f[h]=Ka(a,Na(b,d,h));return{c:function(){for(var a=0;a<f.length;a+=1)f[a].c();c=document.createComment("")},m:function(a,b){for(var d=0;d<f.length;d+=1)f[d].m(a,b);a.insertBefore(c,b)},p:function(b,h){if(b.processedTopics||b.i){d=h.processedTopics;for(var e=0;e<d.length;e+=1){const m=Na(h,d,e);f[e]?f[e].p(b,m):(f[e]=Ka(a,m),f[e].c(),f[e].m(c.parentNode,c))}for(;e<f.length;e+=1)f[e].d(1);f.length=
+d.length}},d:function(a){Ca(f,a);a&&k(c)}}}function Na(a,b,c){a=Object.create(a);a.topic=b[c];a.each_value=b;a.topic_index=c;return a}function La(a){a=this._svelte;var b=a.ctx;a.component.checkTopic(b.topic,b.i)}function Ma(a){a=this._svelte;a.component.deleteTopic(a.ctx.i)}function V(a){var b=this;Y(this,a);this._state=t({loading:!1,topicsStr:"",topics:[],sorting:{by:"id",asc:!0},processedTopics:[]},a.data);this._recompute({topics:1,sorting:1},this._state);this._intro=!0;document.getElementById("svelte-tcbu4p-style")||
+Wa();a.root||(this._oncreate=[]);this._fragment=Xa(this,this._state);this.root._oncreate.push(function(){Va.call(b);b.fire("update",{changed:Ba({},b._state),current:b._state})});a.target&&(this._fragment.c(),this._mount(a.target,a.anchor),G(this._oncreate))}function Ya(a,b){function c(){h=!0;a.set({topicsStr:f.value});h=!1}function d(c){a.checkLinks(b.topicsStr)}var f,h=!1,m,D,q,l,n,C,r,u,z,p,M,y,w,E,F,t,H,I,J,x=b.links&&0<b.links.length&&Oa(a,b);return{c:function(){f=e("textarea");m=g("\n");D=e("br");
+q=g("\n");l=e("br");n=g("\n  ");C=e("button");C.textContent="Adicionar";r=g("\n");u=e("br");z=g("\n");p=e("br");M=g("\n");y=e("br");w=g("\n");E=e("table");F=e("thead");F.innerHTML="<tr><th>Link</th>\n      <th>Host</th>\n      <th>Status</th></tr>";t=g("\n  ");H=e("tfoot");I=g("\n  ");J=e("tbody");x&&x.c();A(f,"input",c);f.rows="10";f.cols="100";f.placeholder="Um link por linha. https://mega.nz/#!hM8yhKCZ!03Y_TKxtQ7FonA2a5Q0MXbMG7zbXM7Gj9V7HLEP1T-s";A(C,"click",d);C.className="button";E.className=
+"table-style svelte-tcbu4p"},m:function(a,c){a.insertBefore(f,c);f.value=b.topicsStr;a.insertBefore(m,c);a.insertBefore(D,c);a.insertBefore(q,c);a.insertBefore(l,c);a.insertBefore(n,c);a.insertBefore(C,c);a.insertBefore(r,c);a.insertBefore(u,c);a.insertBefore(z,c);a.insertBefore(p,c);a.insertBefore(M,c);a.insertBefore(y,c);a.insertBefore(w,c);a.insertBefore(E,c);E.appendChild(F);E.appendChild(t);E.appendChild(H);E.appendChild(I);E.appendChild(J);x&&x.m(J,null)},p:function(c,d){b=d;h||(f.value=b.topicsStr);
+b.links&&0<b.links.length?x?x.p(c,b):(x=Oa(a,b),x.c(),x.m(J,null)):x&&(x.d(1),x=null)},d:function(a){a&&k(f);B(f,"input",c);a&&(k(m),k(D),k(q),k(l),k(n),k(C));B(C,"click",d);a&&(k(r),k(u),k(z),k(p),k(M),k(y),k(w),k(E));x&&x.d()}}}function Pa(a,b){var c,d,f,h=b.link.url,m,D,q,l,n=b.link.host,C,r,u,z=b.link.status,p;return{c:function(){c=e("tr");d=e("td");f=e("a");m=g(h);q=g("\n      ");l=e("th");C=g(n);r=g("\n      ");u=e("td");p=g(z);f.href=D=b.link.url;f.target="_blank";f.rel="noopener noreferrer"},
+m:function(a,b){a.insertBefore(c,b);c.appendChild(d);d.appendChild(f);f.appendChild(m);c.appendChild(q);c.appendChild(l);l.appendChild(C);c.appendChild(r);c.appendChild(u);u.appendChild(p)},p:function(a,b){a.links&&h!==(h=b.link.url)&&(m.data=h);a.links&&D!==(D=b.link.url)&&(f.href=D);a.links&&n!==(n=b.link.host)&&(C.data=n);a.links&&z!==(z=b.link.status)&&(p.data=z)},d:function(a){a&&k(c)}}}function Oa(a,b){for(var c,d=b.links,f=[],e=0;e<d.length;e+=1)f[e]=Pa(a,Qa(b,d,e));return{c:function(){for(var a=
+0;a<f.length;a+=1)f[a].c();c=document.createComment("")},m:function(a,b){for(var d=0;d<f.length;d+=1)f[d].m(a,b);a.insertBefore(c,b)},p:function(b,e){if(b.links){d=e.links;for(var h=0;h<d.length;h+=1){const l=Qa(e,d,h);f[h]?f[h].p(b,l):(f[h]=Pa(a,l),f[h].c(),f[h].m(c.parentNode,c))}for(;h<f.length;h+=1)f[h].d(1);f.length=d.length}},d:function(a){Ca(f,a);a&&k(c)}}}function Qa(a,b,c){a=Object.create(a);a.link=b[c];a.each_value=b;a.link_index=c;return a}function qa(a){Y(this,a);this._state=t({links:[],
+topicsStr:""},a.data);this._intro=!0;if(!document.getElementById("svelte-tcbu4p-style")){var b=e("style");b.id="svelte-tcbu4p-style";b.textContent=".table-style.svelte-tcbu4p{border-collapse:initial;border-spacing:15px}";document.head.appendChild(b)}this._fragment=Ya(this,this._state);a.target&&(this._fragment.c(),this._mount(a.target,a.anchor))}function Za(){return new Promise(function(a,b){let c,d;c=this.get().config;return GM.getValue("config","{}").then(function(f){try{return d=JSON.parse(f),
+c=Object.assign(c,d),this.set({config:c}),a()}catch(h){return b(h)}}.bind(this),b)}.bind(this))}function $a(a,b){function c(){b.config.checkTopic=n.checked;a.set({config:b.config})}function d(b){a.saveConfig()}function f(){b.config.doChecking=w.checked;a.set({config:b.config})}function h(b){a.saveConfig()}var m,D,q,l,n,C,r,u,z,p,M,y,w,E,F,t,H,I,J;return{c:function(){m=e("br");D=g("\n");q=e("br");l=g("\n");n=e("input");C=g("\n");r=e("label");r.textContent="Verificar links ao acessar upload";u=g("\n");
+z=e("br");p=g("\n");M=e("br");y=g("\n");w=e("input");E=g("\n");F=e("label");F.textContent="Fazer checking ao verificar upload";t=g("\n");H=e("br");I=g("\n");J=e("br");A(n,"change",c);A(n,"change",d);n.setAttribute("type","checkbox");n.name="checkTopic";r.htmlFor="checkTopic";A(w,"change",f);A(w,"change",h);w.setAttribute("type","checkbox");w.name="doChecking";F.htmlFor="checkTopic"},m:function(a,c){a.insertBefore(m,c);a.insertBefore(D,c);a.insertBefore(q,c);a.insertBefore(l,c);a.insertBefore(n,c);
+n.checked=b.config.checkTopic;a.insertBefore(C,c);a.insertBefore(r,c);a.insertBefore(u,c);a.insertBefore(z,c);a.insertBefore(p,c);a.insertBefore(M,c);a.insertBefore(y,c);a.insertBefore(w,c);w.checked=b.config.doChecking;a.insertBefore(E,c);a.insertBefore(F,c);a.insertBefore(t,c);a.insertBefore(H,c);a.insertBefore(I,c);a.insertBefore(J,c)},p:function(a,c){b=c;n.checked=b.config.checkTopic;w.checked=b.config.doChecking},d:function(a){a&&(k(m),k(D),k(q),k(l),k(n));B(n,"change",c);B(n,"change",d);a&&
+(k(C),k(r),k(u),k(z),k(p),k(M),k(y),k(w));B(w,"change",f);B(w,"change",h);a&&(k(E),k(F),k(t),k(H),k(I),k(J))}}}function ra(a){var b=this;Y(this,a);this._state=t({config:{checkTopic:!0,doChecking:!0}},a.data);this._intro=!0;a.root||(this._oncreate=[]);this._fragment=$a(this,this._state);this.root._oncreate.push(function(){Za.call(b);b.fire("update",{changed:Ba({},b._state),current:b._state})});a.target&&(this._fragment.c(),this._mount(a.target,a.anchor),G(this._oncreate))}function ab(a,b){function c(b){a.onChangeHash()}
+function d(b){a.onKeyDown(b)}function f(b){a.changeStatus()}function h(b){a.changeHash("config")}function m(b){a.changeHash("verificacao")}function D(b){a.changeHash("depurar")}function q(a){return"verificacao"===a.hash?bb:"depurar"===a.hash?cb:db}var l,n,C,r,u,z,p,t,y,w,E,F,G,H,I;window.addEventListener("hashchange",c);window.addEventListener("keydown",d);var J=q(b),x=J(a,b);return{c:function(){l=e("section");n=e("span");n.textContent="\u00d7";C=g("\n  ");r=e("div");u=e("div");z=e("button");z.textContent=
+"Configura\u00e7\u00f5es";t=g("\n      ");y=e("button");y.textContent="Verifica\u00e7\u00e3o em massa";E=g("\n      ");F=e("button");F.textContent="Depurar";H=g("\n  ");I=e("section");x.c();A(n,"click",f);n.id="lcfw-close";n.title="Fechar";n.className="modal-close svelte-ndq0v8";A(z,"click",h);z.className=p="tabButton "+("config"===b.hash?"selected":"")+" svelte-ndq0v8";A(y,"click",m);y.className=w="tabButton "+("verificacao"===b.hash?"selected":"")+" svelte-ndq0v8";A(F,"click",D);F.className=G="tabButton "+
+("depurar"===b.hash?"selected":"")+" svelte-ndq0v8";u.id="dashboard-nav-widgets";u.className="svelte-ndq0v8";r.id="dashboard-nav";r.className="svelte-ndq0v8";I.className="content svelte-ndq0v8";l.id="lcfw";l.style.setProperty("display",b.active?"":"none");l.className="svelte-ndq0v8"},m:function(a,b){a.insertBefore(l,b);l.appendChild(n);l.appendChild(C);l.appendChild(r);r.appendChild(u);u.appendChild(z);u.appendChild(t);u.appendChild(y);u.appendChild(E);u.appendChild(F);l.appendChild(H);l.appendChild(I);
+x.m(I,null)},p:function(b,c){b.hash&&p!==(p="tabButton "+("config"===c.hash?"selected":"")+" svelte-ndq0v8")&&(z.className=p);b.hash&&w!==(w="tabButton "+("verificacao"===c.hash?"selected":"")+" svelte-ndq0v8")&&(y.className=w);b.hash&&G!==(G="tabButton "+("depurar"===c.hash?"selected":"")+" svelte-ndq0v8")&&(F.className=G);J!==(J=q(c))&&(x.d(1),x=J(a,c),x.c(),x.m(I,null));b.active&&l.style.setProperty("display",c.active?"":"none")},d:function(a){window.removeEventListener("hashchange",c);window.removeEventListener("keydown",
+d);a&&k(l);B(n,"click",f);B(z,"click",h);B(y,"click",m);B(F,"click",D);x.d()}}}function bb(a,b){var c=new V({root:a.root});return{c:function(){c._fragment.c()},m:function(a,b){c._mount(a,b)},d:function(a){c.destroy(a)}}}function cb(a,b){var c=new qa({root:a.root});return{c:function(){c._fragment.c()},m:function(a,b){c._mount(a,b)},d:function(a){c.destroy(a)}}}function db(a,b){var c=new ra({root:a.root});return{c:function(){c._fragment.c()},m:function(a,b){c._mount(a,b)},d:function(a){c.destroy(a)}}}
+function Aa(a){Y(this,a);this._state=t({hash:"config",active:!1},a.data);this._intro=!0;if(!document.getElementById("svelte-ndq0v8-style")){var b=e("style");b.id="svelte-ndq0v8-style";b.textContent="#lcfw.svelte-ndq0v8{background-color:#FFF;position:fixed;top:0;left:0;z-index:1000;height:100%;width:100%;overflow:auto}#lcfw-close.svelte-ndq0v8{position:absolute;top:5px;right:5px;line-height:12px;text-decoration:none;cursor:pointer;font-size:40px}#dashboard-nav.svelte-ndq0v8{border:0;margin:0;padding:0;top:0;width:100%;z-index:10}#dashboard-nav-widgets.svelte-ndq0v8{align-items:stretch;background-color:white;border-bottom:1px solid #ccc;display:flex;margin:0;padding:4px 0 0;white-space:nowrap}.tabButton.svelte-ndq0v8{background-color:#eee;border:1px solid #ccc;border-top-left-radius:3px;border-top-right-radius:3px;border-bottom:1px solid #ccc;color:black;cursor:pointer;display:inline-block;font-size:110%;margin:0 0.2em 0 0;overflow:hidden;padding:4px;position:relative;text-decoration:none;top:1px}.tabButton.selected.svelte-ndq0v8{background-color:white;border-bottom:1px solid white}.content.svelte-ndq0v8{padding:30px}";
+document.head.appendChild(b)}a.root||(this._oncreate=[],this._beforecreate=[],this._aftercreate=[]);this._fragment=ab(this,this._state);a.target&&(this._fragment.c(),this._mount(a.target,a.anchor),this._lock=!0,G(this._beforecreate),G(this._oncreate),G(this._aftercreate),this._lock=!1)}var W={destroy:function(a){this.destroy=X;this.fire("destroy");this.set=X;this._fragment.d(!1!==a);this._fragment=null;this._state={}},get:function(){return this._state},fire:function(a,b){if(a=a in this._handlers&&
+this._handlers[a].slice())for(var c=0;c<a.length;c+=1){var d=a[c];d.__calling||(d.__calling=!0,d.call(this,b),d.__calling=!1)}},on:function(a,b){var c=this._handlers[a]||(this._handlers[a]=[]);c.push(b);return{cancel:function(){var a=c.indexOf(b);~a&&c.splice(a,1)}}},set:function(a){this._set(t({},a));this.root._lock||(this.root._lock=!0,G(this.root._beforecreate),G(this.root._oncreate),G(this.root._aftercreate),this.root._lock=!1)},_recompute:X,_set:function(a){var b=this._state,c={},d=!1,f;for(f in a)this._differs(a[f],
+b[f])&&(c[f]=d=!0);d&&(this._state=t(t({},b),a),this._recompute(c,this._state),this._bind&&this._bind(c,this._state),this._fragment&&(this.fire("state",{changed:c,current:this._state,previous:b}),this._fragment.p(c,this._state),this.fire("update",{changed:c,current:this._state,previous:b})))},_mount:function(a,b){this._fragment[this._fragment.i?"i":"m"](a,b||null)},_differs:function(a,b){return a!=a?b==b:a!==b||a&&"object"===typeof a||"function"===typeof a}},Da=function(a){function b(b){var c=b.type,
+d=b.method,e=b.url,g=b.headers,k=b.data,l=b.status;b=b.responseText;a.call(this,d+" "+e+" "+l);this.name=this.constructor.name;this.type=c;this.method=d;this.url=e;this.headers=g;this.data=k;this.status=l;this.responseText=b}a&&(b.__proto__=a);b.prototype=Object.create(a&&a.prototype);b.prototype.constructor=b;var c={headers:{configurable:!0},data:{configurable:!0},method:{configurable:!0},url:{configurable:!0},status:{configurable:!0},responseText:{configurable:!0}};c.headers.get=function(){return this.headers};
+c.data.get=function(){return this.data};c.method.get=function(){return this.method};c.url.get=function(){return this.url};c.status.get=function(){return this.status};c.responseText.get=function(){return this.responseText};Object.defineProperties(b.prototype,c);return b}(Error),ba=Object.freeze({_1fichier:{name:"1fichier",regexHref:/^(?:https?:\/\/)?(?:www\.)?1fichier\.com\/.+/i,regex:{linkOff:/File not found|file has been deleted/,linkOn:/Size :/},check:K},_4Shared:{name:"4Shared",regexHref:/^(?:https?:\/\/)?(?:www\.)?4shared\.com\/.+/i,
+headers:{Cookie:"4langcookie=en"},regex:{linkOff:/link that you requested is not valid/,linkOn:/class="fileName/},check:K},amazon:{name:"Amazon",regexHref:/^(?:https?:\/\/)?(?:www\.)?amazon\.com\/clouddrive\/share\/([\w-]{43})/i,check:function(a){var b=a[1];return new Promise(function(a,d){return a(L(["https://www.amazon.com/drive/v1/shares/"+b+"?resourceVersion=V2&ContentType=JSON&asset=ALL"]))})}},brupload:{name:"BrUpload",regexHref:/^(?:https?:\/\/)?(?:www\.)?brupload\.net\/.+/i,regex:{linkOff:/Arquivo N\u00e3o Encontrado/i,
+linkOn:/name="fname"/},check:K},cloudmailru:{name:"CloudmailRu",regexHref:/^(?:https?:\/\/)?(?:www\.)?cloud\.mail\.ru\/.+/i,regex:{linkOff:/"error": "not_exists"/,linkOn:/"type": "folder"|"type": "file"/},check:K},gdrive:{name:"GDrive",priority:0,regexHref:/^(?:https?:\/\/)?(?:drive|docs)\.google\.com\/(?:a\/[^/]+\/)?(?:(?:file|document|spreadsheets|folder)\/d\/|(folderview|uc|open)\?id=)([\w-]+)/i,check:function(a){var b=a[0],c=a[1],d=a[2];return new Promise(function(a,e){return a(L(["uc"===c?"https://drive.google.com/open?id="+
+d:b]))})}},mediafire:{name:"MediaFire",regexHref:/^(?:https?:\/\/)?(?:www\.)?mediafire.com\/file\/.+/i,check:L},mega:{name:"Mega",priority:1,regexHref:/^(?:https?:\/\/)?(?:www\.)?mega(?:\.co)?\.nz\/#(F)?!(\w{8})!([\w-]+)$/i,check:function(a){var b=a[1],c=a[2];return new Promise(function(a,f){let d,e,g,k,l;b?(e=/^(-*\d+)/,d='[{"a":"f","c":1,"r":1}]',g="https://eu.api.mega.co.nz/cs?id=0&n="+c):(e=/^\[(-*\d+)]/,d='[{"a":"g","p":"'+c+'"}]',g="https://eu.api.mega.co.nz/cs?id=0");return Q({method:"POST",
+url:g,data:d,headers:{"Content-Type":"text/plain; charset=UTF-8",Referer:"https://mega.nz"}}).then(function(b){try{k=b.responseText;var c=e.exec(k)||[];return(l=c[1])?(l=+l,-9===l||-16===l||-6===l?a("OFF"):a("UNDEF")):a("ON")}catch(r){return f(r)}},f)})}},nitroflare:{name:"Nitroflare",regexHref:/^(?:https?:\/\/)?(?:www\.)?nitroflare\.com\/.+/i,regex:{linkOff:/file has been removed/,linkOn:/id="slow-download"/},check:K},onedrive:{name:"OneDrive",regexHref:/^(?:https?:\/\/)?(?:onedrive\.live|1drv\.ms|.*\.sharepoint\.com)(.*)/i,
+check:L},rapidgator:{name:"RapidGator",regexHref:/^(?:https?:\/\/)?(?:www\.)?rapidgator\.net\/file\/.+/i,regex:{linkOff:/<h3>File not found/,linkOn:/class="download-timer/},check:K},solidfiles:{name:"Solidfiles",regexHref:/^(?:https?:\/\/)?(?:www\.)?solidfiles\.com\/.+/i,regex:{linkOff:/<h1>404</,linkOn:/filetype-icon/},check:K},uploaded:{name:"Uploaded",regexHref:/^(?:https?:\/\/)?(?:www\.)?(?:uploaded\.net\/file|ul\.to)\/.+/i,check:L},uptobox:{name:"Uptobox",regexHref:/^(?:https?:\/\/)?(?:www\.)?uptobox\.com\/.+/i,
+regex:{linkOff:/File not found|Arquivo n\u00e3o encontrado/,linkOn:/value="download/},check:K},userscloud:{name:"Userscloud",regexHref:/^(?:https?:\/\/)?(?:www\.)?userscloud\.com\/.+/i,regex:{linkOff:/download is no longer available/,linkOn:/btn_download/},check:K}});const Sa=Object.keys(ba).sort(function(a,b){return(ba[a].priority||2)-(ba[b].priority||2)}).map(function(a){return ba[a]});var pa={check:function(a,b){void 0===b&&(b=!1);return new Promise(function(c,d){let f,e;var g=Ra(a);f=g.host;g=
+g.matcher;return f?f.check(g).then(function(h){try{return e=h,console.log(a+" - "+f.name+" - "+e),b?c({host:f.name,status:e,url:a}):c(e)}catch(q){return d(q)}},d):(console.warn("N\u00e3o encontrado host para "+a),b?c({status:"UNDEF",host:"N/D",url:a}):c("UNDEF"))})},init:function(){}},eb={parseDOM:function(a){return(new DOMParser).parseFromString(a,"text/html")}},Z={getTopicInfo:function(a){return new Promise(function(b,c){let d,f,e,g,k,q,l;return Q({url:"showthread.php?t="+a+"&page=1"}).then(function(h){try{d=
+h.responseText;f=eb.parseDOM(d);e=f.getElementsByClassName("upload_link");g=f.querySelector('input[name="securitytoken"]').value;var m=f;k=m.title;var n=f.querySelector(".username_container .username");q=n.textContent;l=[];for(let a=0,b=e.length;a<b;a+=1){const b=e[a];if(2===b.children.length){const a=b.firstElementChild.textContent,c=b.firstElementChild.firstChild.href,d=b.lastElementChild.firstElementChild,f=d.id,e=d.classList.contains("online")?"ON":"OFF";l.push({label:a,url:c,linkid:f,oldStatus:e})}}return b({title:k,
+id:a,uploader:q,links:l,token:g})}catch(u){return c(u)}},c)})},checkIn:oa,checkTopic:function(){return new Promise(function(a,b){let c,d,f,e,g;return GM.getValue("config","{}").then(function(h){try{var k=function(){return a()};c=JSON.parse(h);d=!!c.checkTopic;f=!!c.doChecking;e=document.getElementsByClassName("upload_links");g=document.getElementsByClassName("link_password");if(d&&e.length&&0===g.length){let a,c,d,h,g;e[0].scrollIntoView();a=document.getElementsByClassName("upload_link");c=unsafeWindow.SECURITYTOKEN;
+d=[];h=[];g=0;for(let b=0,e=a.length;b<e;b+=1){const e=a[b];if(2===e.children.length){const a=e.firstElementChild.firstChild.href,b=e.lastElementChild.firstElementChild,k=b.id,l=b.classList.contains("online")?"ON":"OFF";d.push({url:a,linkid:k,oldStatus:l,u:e,statusE:b});b.classList.add("loading");const m=pa.check(a).then(function(a){if("UNDEF"!==a){if(f&&a!==l)return g+=1,oa({linkid:k,token:c,status:"ON"===a}).then(function(){b.classList.remove("online","offline","loading");"OFF"===a?(b.classList.add("offline"),
+e.classList.add("lcfw-off")):(b.classList.add("online"),e.classList.add("lcfw-on"));return a});"OFF"===a?(b.classList.remove("online","offline","loading"),b.classList.add("offline"),e.classList.add("lcfw-off")):(b.classList.remove("online","offline","loading"),b.classList.add("online"),e.classList.add("lcfw-on"))}else b.classList.remove("loading"),e.classList.add("lcfw-unk");return a});h.push(m)}}return Promise.all(h).then(function(a){try{if(f&&0===g&&0<d.length){let a;a=d[0];oa({linkid:a.linkid,
+token:c,status:"ON"===a.oldStatus})}return k.call(this)}catch(p){return b(p)}}.bind(this),b)}return k.call(this)}catch(l){return b(l)}}.bind(this),b)})}};t(V.prototype,W);t(V.prototype,{sortItem:function(a){a=a.by;var b=this.get().sorting;b.by=a;b.asc=!b.asc;this.set({sorting:b})},toggleAll:function(a){var b=this.get().topics;b.forEach(function(b){b.checked=a});this.set({topics:b})},addTopics:function(a){return new Promise(function(b,c){let d,e;d=/showthread.php\?t=(\d+)$/;e=[];a.split(/\n+/).forEach(function(a){(a=
+(d.exec(a)||[])[1])&&e.push(+a)});if(0<e.length){var h=function(){return b()};let a,d;var g=this.get();a=g.topics;g=new Set(a.map(function(a){return a.id}));d=new Set;for(let a=0;a<e.length;a+=1)g.has(e[a])||d.add(e[a]);return 0<d.size?(console.log("Adicionado "+d.size+"!"),d.forEach(function(b){a.push({id:b})}),GM.setValue("topics",JSON.stringify(a)).then(function(b){try{return this.set({topics:a}),h.call(this)}catch(n){return c(n)}}.bind(this),c)):h.call(this)}return b()}.bind(this))},checkTopics:function(){return new Promise(function(a,
+b){let c,d,e;c=this.get().topics;d=c.filter(function(a){return a.checked});this.set({loading:!0});e=[];d.forEach(function(a){a=Ea(a);e.push(a)});return Promise.all(e).then(function(d){try{return GM.setValue("topics",JSON.stringify(c)).then(function(d){try{return this.set({topics:c,loading:!1}),a()}catch(D){return b(D)}}.bind(this),b)}catch(m){return b(m)}}.bind(this),b)}.bind(this))},checkTopic:function(a){return new Promise(function(b,c){let d;a.loading=!0;d=this.get().topics;this.set({topics:d});
+return Ea(a).then(function(e){try{return a.loading=!1,GM.setValue("topics",JSON.stringify(d)).then(function(a){try{return this.set({topics:d}),b()}catch(m){return c(m)}}.bind(this),c)}catch(h){return c(h)}}.bind(this),c)}.bind(this))},deleteTopic:function(a){return new Promise(function(b,c){let d;d=this.get().topics;d.splice(a,1);return GM.setValue("topics",JSON.stringify(d)).then(function(a){try{return this.set({topics:d}),b()}catch(h){return c(h)}}.bind(this),c)}.bind(this))}});V.prototype._recompute=
+function(a,b){(a.topics||a.sorting)&&this._differs(b.processedTopics,b.processedTopics=Ta(b))&&(a.processedTopics=!0);a.topics&&this._differs(b.numChecked,b.numChecked=Ua(b))&&(a.numChecked=!0)};t(qa.prototype,W);t(qa.prototype,{checkLinks:function(a){return new Promise(function(b,c){let d,e,g,k;d=/^https?:\/\//;e=[];a.trim().split(/\n+/).forEach(function(a){a=a.trim();d.test(a)&&e.push(pa.check(a,!0))});return Promise.all(e).then(function(a){try{g=a;k=[];for(let a=0,b=g.length;a<b;a+=1){const b=
+g[a];k.push({url:b.url,status:b.status,host:b.host})}this.set({links:k});return b()}catch(q){return c(q)}}.bind(this),c)}.bind(this))}});t(ra.prototype,W);t(ra.prototype,{saveConfig:function(){var a=this.get().config;GM.setValue("config",JSON.stringify(a))}});t(Aa.prototype,W);t(Aa.prototype,{changeHash:function(a){window.location.hash=a},oncreate:function(){window.location.hash="";this.changeHash()},onChangeHash:function(){const a=window.location.hash.slice(1);a.startsWith("veri")?this.set({hash:"verificacao"}):
+a.startsWith("depurar")?this.set({hash:"depurar"}):this.set({hash:"config"})},onKeyDown:function(a){a.ctrlKey&&a.shiftKey&&"V"===a.key?this.changeStatus():"Escape"===a.key&&this.get().active&&this.changeStatus()},changeStatus:function(){var a=this.get().active;this.set({active:!a})}});"undefined"===typeof GM&&(window.GM={},Object.entries({GM_addStyle:"addStyle",GM_xmlhttpRequest:"xmlHttpRequest",GM_info:"info"}).forEach(function(a){var b=a[0];a=a[1];b&&(GM[a]=window[b])}),Object.entries({GM_getValue:"getValue",
+GM_setValue:"setValue"}).forEach(function(a){var b=a[0];a=a[1];if("function"===typeof window[b]){const c=window[b];GM[a]=function(){for(var a=[],b=arguments.length;b--;)a[b]=arguments[b];try{return Promise.resolve(c.apply(void 0,a))}catch(h){return Promise.reject(h)}}}}));GM.addStyle||(GM.addStyle=function(a){const b=document.createElement("style");b.textContent=a;document.head.appendChild(b);return b});document.addEventListener("DOMContentLoaded",function(){window.app=new Aa({target:document.body});
+window.location.pathname.startsWith("/showthread.php")&&(GM.addStyle("\n      .blockrow.upload_link.lcfw-on {\n        background-color: rgba(46, 204, 113, 0.2);\n      }\n      .blockrow.upload_link.lcfw-off {\n        background-color: rgba(231, 76, 60, 0.2);\n      }\n      .blockrow.upload_link.lcfw-unk {\n        background-color: rgba(255, 247, 163, 0.9);\n      }\n    "),Z.checkTopic())})})();
