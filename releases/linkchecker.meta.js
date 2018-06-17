@@ -1,17 +1,20 @@
 // ==UserScript==
 // @name        Verificador de uploads [FW]
-// @description Userscript para auxiliar na verificação de uploads na FileWarez.
-// @include     /^http(s)?:\/\/(www\.)?filewarez\.tv/.*$/
-// @copyright   2016, XOR
+// @version     1.0.1
+// @description User script para facilitar a verificação de uploads na FW
 // @author      XOR
-// @version     0.3.3
-// @grant       unsafeWindow
-// @grant       GM_xmlhttpRequest
-// @require     https://linkcheckerfw.github.io/lib/asmcrypto.js
-// @updateURL   https://linkcheckerfw.github.io/releases/linkchecker.meta.js
-// @downloadURL https://linkcheckerfw.github.io/releases/linkchecker.user.js
 // @namespace   4971e63b909612f5598edd6d90012dae
-// @connect     *
+// @match       *://*.filewarez.tv/*
+// @grant       GM_xmlhttpRequest
+// @grant       GM.xmlhttpRequest
+// @grant       GM.setValue
+// @grant       GM_setValue
+// @grant       GM.getValue
+// @grant       GM_getValue
+// @grant       GM_addStyle
+// @grant       GM.addStyle
+// @grant       unsafeWindow
 // @run-at      document-start
+// @connect     *
 // @noframes
 // ==/UserScript==
